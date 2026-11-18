@@ -115,6 +115,10 @@
                 transparent 8px
             );
         }
+        .stamp-seal {
+            border: 3px double rgba(245, 158, 11, 0.7);
+            transform: rotate(-12deg);
+        }
     </style>
 </head>
 <body class="bg-portal-bg text-slate-200 font-sans antialiased min-h-screen flex flex-col selection:bg-amber-500/30 selection:text-amber-200" onload="bootstrapApp()">
@@ -398,6 +402,478 @@
             </div>
         </div>
     </footer>
+
+    <!-- ========================================================================= -->
+    <!-- МОДАЛЬНЫЕ ОКНА ПОРТАЛА                                                    -->
+    <!-- ========================================================================= -->
+
+    <!-- 1. Модальное окно: Справочник видов ордеров (law-modal) -->
+    <div id="law-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-portal-card border border-portal-border rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+            <div class="px-6 py-4 bg-portal-elevated border-b border-portal-border flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                        <i class="fa-solid fa-book-bookmark"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-white">Закон «О системе ордеров штата San Andreas»</h3>
+                        <p class="text-xs text-slate-400">Классификация постановлений, полномочия на выдачу и порядок исполнения</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('law-modal')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-3 text-xs sm:text-sm">
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-purple-300">AR — Access To Raid (Доступ к рейду)</span>
+                        <span class="text-[11px] text-slate-400">Генеральный Прокурор, Зам. Ген. Прокурора, Губернатор, Вице-Губернатор</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Санкционирует проведение специальной силовой операции (рейда) по отношению к криминальной организации или территории на основании утвержденного Case-File.</p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-rose-300">AS — Arrest and Search (Арест и обыск — Прокуратура)</span>
+                        <span class="text-[11px] text-slate-400">Прокуратура (от Прокурора до Ген. Прокурора), Губернатор</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Постановление Прокуратуры на задержание, арест и личный обыск лица, обвиняемого в совершении преступления.</p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-rose-200">ASC — Arrest and Search Court (Арест и обыск — Суд)</span>
+                        <span class="text-[11px] text-slate-400">Судебная власть (Окружной судья, Верховный судья, ПВС, Зам. ПВС)</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Судебный ордер на задержание, арест и обыск лица по решению или определению суда.</p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-sky-300">SA — Search Access (Доступ к обыску собственности)</span>
+                        <span class="text-[11px] text-slate-400">Суд и Прокуратура (от Прокурора / Окружного судьи)</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Предоставляет правоохранительным органам право на вскрытие и обыск недвижимого имущества, транспортных средств и складских помещений.</p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-emerald-300">IA — Investigation Access (Доступ к расследованию)</span>
+                        <span class="text-[11px] text-slate-400">Суд, Генеральный Прокурор, Зам. Генерального Прокурора</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Разрешает ведение следственных мероприятий в отношении лиц, обладающих статусом неприкосновенности, либо доступ к закрытым объектам.</p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-amber-300">PTD — Pre-Trial Detention (Досудебное задержание)</span>
+                        <span class="text-[11px] text-slate-400">Суд, Генеральный Прокурор, Зам. Генерального Прокурора</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Мера пресечения в виде заключения подозреваемого под стражу до начала судебного заседания по делу.</p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-indigo-300">AC — Access To Cordon (Доступ к оцеплению)</span>
+                        <span class="text-[11px] text-slate-400">Губернатор, Вице-Губернатор, ПВС, МВБ, Зам. МВБ, Ген. Прокурор</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Устанавливает режим оцепления конкретной зоны или района с ограничением движения граждан и транспорта.</p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-red-300">SE — State of Emergency (Чрезвычайное положение)</span>
+                        <span class="text-[11px] text-slate-400">Губернатор, Вице-Губернатор, Ген. Прокурор, Зам. ГП, МВБ, Зам. МВБ</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Вводит особый правовой режим чрезвычайного положения с расширенными полномочиями силовых ведомств и временными ограничениями.</p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-orange-300">MD — Man-made disaster (Техногенная катастрофа)</span>
+                        <span class="text-[11px] text-slate-400">Губернатор, Вице-Губернатор, МВБ, Зам. МВБ</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Вводит режим ликвидации последствий техногенной катастрофы или стихийного бедствия с закрытием опасных зон.</p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-teal-300">FR — Financial Raid (Финансовый рейд / проверка)</span>
+                        <span class="text-[11px] text-slate-400">Губернатор, Вице-Губернатор, Ген. Прокурор, Зам. ГП, МФ, Зам. МФ</span>
+                    </div>
+                    <p class="text-slate-300 text-xs">Санкционирует внеплановую налоговую и финансовую проверку коммерческой организации, заморозку счетов и изъятие бухгалтерии.</p>
+                </div>
+            </div>
+
+            <div class="px-6 py-3.5 bg-portal-elevated border-t border-portal-border flex justify-end">
+                <button onclick="closeModal('law-modal')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-semibold text-white transition">Закрыть справочник</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Модальное окно: Вход для уполномоченных лиц (login-modal) -->
+    <div id="login-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-portal-card border border-portal-border rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div class="px-6 py-4 bg-portal-elevated border-b border-portal-border flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-key text-amber-400"></i>
+                    <h3 class="text-base font-extrabold text-white">Авторизация DOJ</h3>
+                </div>
+                <button onclick="closeModal('login-modal')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="submitAuthorizedLogin(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Должность сотрудника</label>
+                    <select id="login-role" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-white focus:outline-none focus:border-amber-500">
+                        <option value="Губернатор">Губернатор</option>
+                        <option value="Вице-Губернатор">Вице-Губернатор</option>
+                        <option value="Министр Внутренней Безопасности">Министр Внутренней Безопасности</option>
+                        <option value="Зам. Министра Внутренней Безопасности">Зам. Министра Внутренней Безопасности</option>
+                        <option value="Министр Финансов">Министр Финансов</option>
+                        <option value="Зам. Министра Финансов">Зам. Министра Финансов</option>
+                        <option value="Председатель Верховного Суда">Председатель Верховного Суда</option>
+                        <option value="Зам. Председателя Верховного Суда">Зам. Председателя Верховного Суда</option>
+                        <option value="Верховный судья">Верховный судья</option>
+                        <option value="Окружной судья">Окружной судья</option>
+                        <option value="Генеральный Прокурор">Генеральный Прокурор</option>
+                        <option value="Зам. Генерального Прокурора">Зам. Генерального Прокурора</option>
+                        <option value="Помощ. Генерального Прокурора">Помощ. Генерального Прокурора</option>
+                        <option value="Старший Прокурор">Старший Прокурор</option>
+                        <option value="Прокурор">Прокурор</option>
+                        <option value="Администратор">Администратор</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Индивидуальный код доступа</label>
+                    <input type="password" id="login-code" required placeholder="Введите персональный ключ (например, PRO-109)" 
+                        class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-amber-500">
+                </div>
+
+                <div class="pt-2 flex items-center justify-end gap-2">
+                    <button type="button" onclick="closeModal('login-modal')" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-medium text-slate-300 transition">Отмена</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-portal-blue hover:bg-blue-600 text-xs sm:text-sm font-semibold text-white transition shadow-lg">Войти в систему</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Модальное окно: Просмотр бланка ордера (view-modal) -->
+    <div id="view-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-portal-bg border border-portal-border rounded-2xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+            <div class="px-6 py-4 bg-portal-elevated border-b border-portal-border flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-file-signature text-amber-400"></i>
+                    <h3 class="text-base font-extrabold text-white">Официальный бланк постановления</h3>
+                </div>
+                <button onclick="closeModal('view-modal')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="order-sheet-content" class="p-4 sm:p-6 overflow-y-auto official-paper">
+                <!-- Контент бланка подставляется динамически -->
+            </div>
+
+            <div class="px-6 py-4 bg-portal-elevated border-t border-portal-border flex flex-wrap items-center justify-between gap-3">
+                <button onclick="copyDiscordReport()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2 shadow-md">
+                    <i class="fa-brands fa-discord"></i>
+                    <span>Скопировать для Discord</span>
+                </button>
+
+                <div id="sheet-admin-controls" class="hidden flex flex-wrap items-center gap-2">
+                    <button onclick="updateOrderStatus('executed')" class="px-3.5 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-xs font-semibold transition">
+                        <i class="fa-solid fa-check-double mr-1"></i>Исполнен
+                    </button>
+                    <button onclick="updateOrderStatus('canceled')" class="px-3.5 py-2 rounded-xl bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/40 text-xs font-semibold transition">
+                        <i class="fa-solid fa-ban mr-1"></i>Аннулировать
+                    </button>
+                    <button id="delete-order-btn" onclick="handleDeleteOrder()" class="px-3.5 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-700/50 text-xs font-semibold transition">
+                        <i class="fa-solid fa-box-archive mr-1"></i>В архив
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Модальное окно: Выписать новый ордер (create-modal) -->
+    <div id="create-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-portal-card border border-portal-border rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+            <div class="px-6 py-4 bg-portal-elevated border-b border-portal-border flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-file-circle-plus text-emerald-400"></i>
+                    <h3 class="text-base font-extrabold text-white">Публикация нового ордера в реестре</h3>
+                </div>
+                <button onclick="closeModal('create-modal')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="create-order-form" onsubmit="submitNewOrder(event)" class="p-6 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Вид ордера *</label>
+                        <select id="form-type" onchange="onOrderTypeChange()" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-white focus:outline-none focus:border-amber-500">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Регистрационный № *</label>
+                        <input type="text" id="form-order-number" required class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm font-mono font-bold text-amber-400 focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex items-start gap-2.5">
+                    <i class="fa-solid fa-circle-info text-amber-400 mt-0.5"></i>
+                    <span id="order-type-hint-text">Выдачу ордера регламентирует закон штата San Andreas.</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Инициатор (GOV) *</label>
+                        <select id="form-faction" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Выдал документ *</label>
+                        <input type="text" id="form-issued-by" readonly class="w-full px-3.5 py-2.5 bg-portal-bg/60 border border-portal-border rounded-xl text-sm text-slate-300 cursor-not-allowed">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="sm:col-span-2">
+                        <label id="label-target-name" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Цель (Имя Фамилия) *</label>
+                        <input type="text" id="form-target-name" required placeholder="Имя Фамилия / Организация / Зона" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label id="label-target-static" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Static ID *</label>
+                        <input type="text" id="form-target-static" required value="#" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm font-mono text-amber-400 focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <!-- Блок для стандартных ордеров -->
+                <div id="block-standard-articles" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Нарушенные статьи УК / АК *</label>
+                        <input type="text" id="form-articles" placeholder="Например: 12.8, 17.1 УК SA" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm font-mono text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Исполняющие структуры *</label>
+                        <input type="text" id="form-executor" value="FIB / LSPD / LSCSD / USMS / USSS" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm font-mono text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <!-- Блок для особых режимов (SE, MD, AC) -->
+                <div id="block-emergency-rules" class="hidden space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1.5">Разрешенные полномочия</label>
+                            <textarea id="form-allowed-actions" rows="2" placeholder="Досмотр транспорта, проверка документов..." class="w-full px-3.5 py-2 bg-portal-bg border border-portal-border rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-rose-400 mb-1.5">Ограничения и запреты</label>
+                            <textarea id="form-prohibited-actions" rows="2" placeholder="Ношение масок, массовые собрания..." class="w-full px-3.5 py-2 bg-portal-bg border border-portal-border rounded-xl text-xs text-white focus:outline-none focus:border-rose-500"></textarea>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Задействованные ведомства</label>
+                        <input type="text" id="form-executor-emg" value="FIB / LSPD / LSCSD / SANG / USSS" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm font-mono text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Фабула дела и основание выдачи *</label>
+                    <textarea id="form-reason" rows="3" required placeholder="Укажите номер делопроизводства, искового заявления или основание для введения режима..." class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-white focus:outline-none focus:border-amber-500"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Срок действия ордера *</label>
+                        <select id="form-valid-until" onchange="toggleCustomDurationInput()" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-white focus:outline-none focus:border-amber-500">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Уточнение срока</label>
+                        <input type="text" id="form-valid-custom" placeholder="Например: До 20.11.2026 23:59 UTC" class="hidden w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-portal-border flex items-center justify-end gap-2">
+                    <button type="button" onclick="closeModal('create-modal')" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-medium text-slate-300 transition">Отмена</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs sm:text-sm font-semibold text-white transition shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-stamp"></i>
+                        <span>Опубликовать ордер</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. Модальное окно: Управление профилями (profiles-modal) -->
+    <div id="profiles-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-portal-card border border-portal-border rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+            <div class="px-6 py-4 bg-portal-elevated border-b border-portal-border flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-users-gear text-amber-400 text-lg"></i>
+                    <div>
+                        <h3 class="text-base font-extrabold text-white">Управление профилями доступа DOJ</h3>
+                        <p class="text-xs text-slate-400">Выдача и отзыв персональных ключей уполномоченным сотрудникам</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="profiles-count-badge" class="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-mono">0 профилей</span>
+                    <button onclick="closeModal('profiles-modal')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-6">
+                <form onsubmit="submitCreateProfile(event)" class="bg-portal-bg border border-portal-border rounded-xl p-4 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                    <div class="sm:col-span-4">
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Должность</label>
+                        <select id="new-profile-role" onchange="generateRandomAccessCode()" class="w-full px-3 py-2 bg-portal-card border border-portal-border rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"></select>
+                    </div>
+                    <div class="sm:col-span-4">
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Имя Фамилия</label>
+                        <input type="text" id="new-profile-name" required placeholder="John Doe" class="w-full px-3 py-2 bg-portal-card border border-portal-border rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Код доступа</label>
+                        <input type="text" id="new-profile-code" required class="w-full px-3 py-2 bg-portal-card border border-portal-border rounded-xl text-xs sm:text-sm font-mono text-amber-300 focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <button type="submit" class="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition">
+                            <i class="fa-solid fa-plus mr-1"></i>Выдать
+                        </button>
+                    </div>
+                </form>
+
+                <div class="overflow-x-auto border border-portal-border rounded-xl">
+                    <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                        <thead>
+                            <tr class="bg-portal-elevated border-b border-portal-border text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                <th class="py-2.5 px-3.5">Должность</th>
+                                <th class="py-2.5 px-3.5">Сотрудник</th>
+                                <th class="py-2.5 px-3.5">Код доступа</th>
+                                <th class="py-2.5 px-3.5 hidden sm:table-cell">Выдал доступ</th>
+                                <th class="py-2.5 px-3.5 text-right">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="profiles-tbody" class="divide-y divide-portal-border"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Модальное окно: Редактирование профиля (edit-profile-modal) -->
+    <div id="edit-profile-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-portal-card border border-portal-border rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div class="px-6 py-4 bg-portal-elevated border-b border-portal-border flex items-center justify-between">
+                <h3 class="text-base font-extrabold text-white">Редактирование профиля</h3>
+                <button onclick="closeModal('edit-profile-modal')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form onsubmit="submitEditProfile(event)" class="p-6 space-y-4">
+                <input type="hidden" id="edit-profile-id">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Должность</label>
+                    <select id="edit-profile-role" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-white focus:outline-none focus:border-amber-500"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Имя Фамилия</label>
+                    <input type="text" id="edit-profile-name" required class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-white focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Код доступа</label>
+                    <input type="text" id="edit-profile-code" required class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm font-mono text-amber-300 focus:outline-none focus:border-amber-500">
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('edit-profile-modal')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-medium text-slate-300 transition">Отмена</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs sm:text-sm font-bold transition">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 7. Модальное окно: Архив удаленных ордеров (archive-modal) -->
+    <div id="archive-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-portal-card border border-portal-border rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+            <div class="px-6 py-4 bg-portal-elevated border-b border-portal-border flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-box-archive text-rose-400 text-lg"></i>
+                    <div>
+                        <h3 class="text-base font-extrabold text-white">Архив удаленных ордеров (<span id="archive-count-val">0</span>)</h3>
+                        <p class="text-xs text-slate-400">Журнал документов, снятых с активного реестра</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('archive-modal')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <div class="overflow-x-auto border border-portal-border rounded-xl">
+                    <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                        <thead>
+                            <tr class="bg-portal-elevated border-b border-portal-border text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                <th class="py-2.5 px-3.5">№ Ордера</th>
+                                <th class="py-2.5 px-3.5">Объект / Тип</th>
+                                <th class="py-2.5 px-3.5">Выдал</th>
+                                <th class="py-2.5 px-3.5">Перенес в архив</th>
+                                <th class="py-2.5 px-3.5 text-right">Управление</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archive-tbody" class="divide-y divide-portal-border"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. Модальное окно: Логи входов (logs-modal) -->
+    <div id="logs-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-portal-card border border-portal-border rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+            <div class="px-6 py-4 bg-portal-elevated border-b border-portal-border flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-list-shield text-amber-400 text-lg"></i>
+                    <div>
+                        <h3 class="text-base font-extrabold text-white">Журнал аутентификации (<span id="logs-count-val">0</span>)</h3>
+                        <p class="text-xs text-slate-400">Фиксация попыток входа в панель уполномоченных лиц</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="clearAuthLogs()" class="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800/60 text-xs font-semibold transition">
+                        Очистить логи
+                    </button>
+                    <button onclick="closeModal('logs-modal')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <div class="overflow-x-auto border border-portal-border rounded-xl font-mono">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-portal-elevated border-b border-portal-border text-[11px] font-bold uppercase tracking-wider text-slate-400 font-sans">
+                                <th class="py-2.5 px-3.5">Время (UTC)</th>
+                                <th class="py-2.5 px-3.5">Должность</th>
+                                <th class="py-2.5 px-3.5">Субъект</th>
+                                <th class="py-2.5 px-3.5">IP-адрес</th>
+                                <th class="py-2.5 px-3.5 text-right">Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-tbody" class="divide-y divide-portal-border"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ========================================================================= -->
     <!-- ЛОГИКА ПОРТАЛА (С ОБЛАЧНОЙ СИНХРОНИЗАЦИЕЙ FIREBASE)                      -->
