@@ -23,9 +23,12 @@
         try {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'san-andreas-doj-registry';
             const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-                apiKey: "AIzaSyDummyKeyForSandboxEnvironment",
-                authDomain: "sandbox.firebaseapp.com",
-                projectId: "sandbox-project"
+                apiKey: "AIzaSyCisoytWzBpvU-XZWUnVG7bBZI5s5XbtfU",
+                authDomain: "orders-533ee.firebaseapp.com",
+                projectId: "orders-533ee",
+                storageBucket: "orders-533ee.firebasestorage.app",
+                messagingSenderId: "1059344918448",
+                appId: "1:1059344918448:web:d9bdd856e59cfd6b78d875"
             };
 
             const app = initializeApp(firebaseConfig);
