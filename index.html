@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Единый Реестр Ордеров Штата San Andreas | Department of Justice</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Firebase SDK (v11.6.1) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.firebaseAppReady = false;
+        try {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'san-andreas-doj-registry';
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                apiKey: "AIzaSyDummyKeyForSandboxEnvironment",
+                authDomain: "sandbox.firebaseapp.com",
+                projectId: "sandbox-project"
+            };
+
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
+
+            window.db = db;
+            window.auth = auth;
+            window.firebaseAppId = appId;
+            window.firebaseModules = { collection, doc, setDoc, getDocs, onSnapshot, deleteDoc };
+
+            const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            if (token) {
+                signInWithCustomToken(auth, token).then(() => {
+                    window.firebaseAppReady = true;
+                    if (typeof window.initCloudListeners === 'function') window.initCloudListeners();
+                }).catch(() => {
+                    signInAnonymously(auth).then(() => {
+                        window.firebaseAppReady = true;
+                        if (typeof window.initCloudListeners === 'function') window.initCloudListeners();
+                    });
+                });
+            } else {
+                signInAnonymously(auth).then(() => {
+                    window.firebaseAppReady = true;
+                    if (typeof window.initCloudListeners === 'function') window.initCloudListeners();
+                }).catch(() => {});
+            }
+        } catch (e) {
+            console.warn("Firebase init fallback to local mode:", e);
+        }
+    </script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        portal: {
+                            bg: '#090d16',
+                            card: '#111827',
+                            elevated: '#161f33',
+                            border: '#1f2937',
+                            gold: '#d97706',
+                            goldBright: '#f59e0b',
+                            blue: '#3b82f6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+        .official-paper {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+            background-size: 18px 18px;
+        }
+        .barcode-strip {
+            background: repeating-linear-gradient(
+                90deg,
+                #94a3b8 0px,
+                #94a3b8 2px,
+                transparent 2px,
+                transparent 4px,
+                #94a3b8 4px,
+                #94a3b8 5px,
+                transparent 5px,
+                transparent 8px
+            );
+        }
+    </style>
+</head>
+<body class="bg-portal-bg text-slate-200 font-sans antialiased min-h-screen flex flex-col selection:bg-amber-500/30 selection:text-amber-200" onload="bootstrapApp()">
+
+    <!-- Контейнер всплывающих уведомлений -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Верхняя статусная строка портала -->
+    <div class="bg-[#060910] border-b border-portal-border text-xs text-slate-400 py-1.5 px-4">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <span id="sync-indicator" class="flex items-center gap-2 text-amber-400 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                    Подключение к базе...
+                </span>
+                <span class="hidden md:inline text-slate-700">|</span>
+                <span class="hidden md:inline text-slate-400">State of San Andreas • Unified Warrant Registry</span>
+            </div>
+            <div class="flex items-center gap-4 font-mono">
+                <span class="text-slate-500 hidden sm:inline">Серверное время (UTC-0):</span>
+                <span id="utc-clock" class="text-slate-200 font-semibold">--:--:-- UTC</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Шапка портала (Header) -->
+    <header class="bg-portal-card/95 backdrop-blur-md border-b border-portal-border sticky top-0 z-30 shadow-xl shadow-black/40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <!-- Герб Department of Justice (SVG) и заголовок -->
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-b from-amber-500/20 to-amber-900/10 border border-amber-500/40 flex items-center justify-center shrink-0 shadow-inner">
+                        <svg class="w-9 h-9 text-amber-400" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M32 4L10 13V30C10 44.5 19.4 57.6 32 61C44.6 57.6 54 44.5 54 30V13L32 4Z" stroke="currentColor" stroke-width="2.5" fill="rgba(245, 158, 11, 0.1)"/>
+                            <path d="M32 10L15 17V30C15 41.5 22.2 51.8 32 54.8C41.8 51.8 49 41.5 49 30V17L32 10Z" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2"/>
+                            <path d="M32 18V46M22 25H42M22 25L17 34H27L22 25ZM42 25L37 34H47L42 25ZM25 46H39" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-400">Department of Justice</span>
+                            <span class="px-2 py-0.5 text-[10px] font-mono bg-blue-500/10 text-blue-400 rounded border border-blue-500/30">DOJ.SA.GOV</span>
+                        </div>
+                        <h1 class="text-base sm:text-xl font-extrabold tracking-tight text-white mt-0.5">
+                            ЕДИНЫЙ РЕЕСТР ОРДЕРОВ ШТАТА SAN ANDREAS
+                        </h1>
+                    </div>
+                </div>
+
+                <!-- Кнопки управления -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button onclick="openModal('law-modal')" class="px-3.5 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs sm:text-sm font-medium transition flex items-center gap-2">
+                        <i class="fa-solid fa-book-bookmark text-amber-400"></i>
+                        <span>Справочник видов ордеров</span>
+                    </button>
+
+                    <button id="auth-toggle-btn" onclick="handleAuthButtonClick()" class="px-4 py-2.5 rounded-xl bg-portal-blue hover:bg-blue-600 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2 shadow-lg shadow-blue-950/50">
+                        <i class="fa-solid fa-gavel"></i>
+                        <span id="auth-btn-label">Вход для уполномоченных лиц</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Панель уполномоченного лица (отображается после входа) -->
+            <div id="authorized-bar" class="hidden mt-4 pt-3.5 border-t border-portal-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-portal-elevated/90 p-3.5 rounded-xl border border-amber-500/30">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs sm:text-sm font-bold text-white flex flex-wrap items-center gap-2">
+                            <span id="authorized-user-title">Авторизован: Прокурор</span>
+                            <span id="authorized-admin-badge" class="hidden px-2 py-0.5 text-[10px] font-mono bg-amber-500/15 text-amber-300 border border-amber-500/30 rounded-full">УПРАВЛЕНИЕ ПРОФИЛЯМИ</span>
+                            <span id="authorized-superadmin-badge" class="hidden px-2 py-0.5 text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-full">ГЛАВНЫЙ АДМИНИСТРАТОР</span>
+                            <span class="px-2 py-0.5 text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-full">ДОСТУП ОТКРЫТ</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400">Все действия в реестре фиксируются под вашим персональным профилем.</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button id="view-archive-btn" onclick="openArchiveModal()" class="hidden px-3.5 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-800/60 text-xs sm:text-sm font-semibold transition flex items-center gap-2">
+                        <i class="fa-solid fa-box-archive text-rose-400"></i>
+                        <span>Архив удаленных</span>
+                    </button>
+                    <button id="view-logs-btn" onclick="openLogsModal()" class="hidden px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs sm:text-sm font-semibold transition flex items-center gap-2">
+                        <i class="fa-solid fa-list-shield text-amber-400"></i>
+                        <span>Логи входов (IP)</span>
+                    </button>
+                    <button id="manage-profiles-btn" onclick="openProfilesModal()" class="hidden px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 text-xs sm:text-sm font-semibold transition flex items-center gap-2">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span>Управление профилями</span>
+                    </button>
+                    <button onclick="openCreateOrderModal()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2 shadow-md shadow-emerald-950/50">
+                        <i class="fa-solid fa-file-circle-plus"></i>
+                        <span>Выписать новый ордер</span>
+                    </button>
+                    <button onclick="logoutAuthorized()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-rose-950/70 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-800 text-xs font-medium transition">
+                        <i class="fa-solid fa-right-from-bracket mr-1"></i>Выйти
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Основная рабочая область -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Статусная строка облачного режима -->
+        <div class="bg-portal-card border border-emerald-500/30 rounded-2xl px-4 py-3 flex items-center justify-between text-xs shadow-md">
+            <div class="flex items-center gap-2.5 text-emerald-400 font-semibold">
+                <i class="fa-solid fa-cloud-arrow-up text-base animate-pulse"></i>
+                <span>Облачный режим DOJ Sync: Все изменения ордеров видны участникам в реальном времени</span>
+            </div>
+            <div id="cloud-status-badge" class="font-mono text-slate-400">Подключение к Firebase...</div>
+        </div>
+
+        <!-- 4 Карточки статистики -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-portal-card border border-portal-border rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                <div>
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Всего в реестре</p>
+                    <p id="stat-total" class="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center justify-center text-slate-300">
+                    <i class="fa-solid fa-database text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-portal-card border border-emerald-900/50 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                <div>
+                    <p class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Активные ордера</p>
+                    <p id="stat-active" class="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-bolt text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-portal-card border border-blue-900/50 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                <div>
+                    <p class="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Исполненные</p>
+                    <p id="stat-executed" class="text-2xl sm:text-3xl font-extrabold text-blue-400 font-mono mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                    <i class="fa-solid fa-check-double text-lg"></i>
+                </div>
+            </div>
+
+            <div class="bg-portal-card border border-rose-900/50 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                <div>
+                    <p class="text-[11px] font-bold text-rose-400 uppercase tracking-wider">Аннулированные</p>
+                    <p id="stat-canceled" class="text-2xl sm:text-3xl font-extrabold text-rose-400 font-mono mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                    <i class="fa-solid fa-ban text-lg"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Блок поиска и фильтрации -->
+        <section class="bg-portal-card border border-portal-border rounded-2xl p-4 sm:p-5 space-y-4 shadow-md">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <!-- Поиск -->
+                <div class="md:col-span-6 relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="search-input" placeholder="Поиск по № ордера, имени цели, Static ID, статьям или выдавшему лицу..." 
+                        class="w-full pl-10 pr-4 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition">
+                </div>
+
+                <!-- Фильтр по типу ордера -->
+                <div class="md:col-span-3">
+                    <select id="filter-type" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                        <option value="ALL">Все виды ордеров (AR, AS/ASC, SA, IA, PTD, AC, SE, MD, FR)</option>
+                        <option value="AR">AR — Access To Raid (Доступ к рейду)</option>
+                        <option value="AS">AS — Arrest and Search (Прокуратура)</option>
+                        <option value="ASC">ASC — Arrest and Search Court (Суд)</option>
+                        <option value="SA">SA — Search Access (Обыск собственности)</option>
+                        <option value="IA">IA — Investigation Access (Доступ к расследованию)</option>
+                        <option value="PTD">PTD — Pre-Trial Detention (Досудебное задержание)</option>
+                        <option value="AC">AC — Access To Cordon (Доступ к оцеплению)</option>
+                        <option value="SE">SE — State of Emergency (Чрезвычайное положение)</option>
+                        <option value="MD">MD — Man-made disaster (Техногенная катастрофа)</option>
+                        <option value="FR">FR — Financial Raid (Финансовый рейд)</option>
+                    </select>
+                </div>
+
+                <!-- Фильтр по статусу -->
+                <div class="md:col-span-3">
+                    <select id="filter-status" class="w-full px-3.5 py-2.5 bg-portal-bg border border-portal-border rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                        <option value="ALL">Все статусы документов</option>
+                        <option value="active">🟢 Активные</option>
+                        <option value="executed">🔵 Исполненные</option>
+                        <option value="canceled">🔴 Аннулированные</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Быстрые кнопки-чипы по подразделениям GOV -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-portal-border">
+                <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span class="text-slate-400 font-medium mr-1">Инициатор (GOV):</span>
+                    <button onclick="setFactionFilter('ALL')" data-faction="ALL" class="faction-chip px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold transition">Все</button>
+                    <button onclick="setFactionFilter('GOV — Прокуратура')" data-faction="GOV — Прокуратура" class="faction-chip px-3 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/20 font-bold transition">Прокуратура</button>
+                    <button onclick="setFactionFilter('GOV — Суд')" data-faction="GOV — Суд" class="faction-chip px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 font-bold transition">Суд</button>
+                    <button onclick="setFactionFilter('GOV — МВБ')" data-faction="GOV — МВБ" class="faction-chip px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/20 font-bold transition">МВБ</button>
+                    <button onclick="setFactionFilter('GOV — МФ')" data-faction="GOV — МФ" class="faction-chip px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/30 hover:bg-teal-500/20 font-bold transition">МФ</button>
+                    <button onclick="setFactionFilter('GOV — Офис Губернатора')" data-faction="GOV — Офис Губернатора" class="faction-chip px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 font-bold transition">Офис Губернатора</button>
+                </div>
+
+                <button onclick="resetFilters()" class="text-xs text-slate-400 hover:text-amber-400 transition flex items-center gap-1.5 py-1">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Сбросить фильтры</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Таблица реестра ордеров -->
+        <section class="bg-portal-card border border-portal-border rounded-2xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-portal-elevated border-b border-portal-border text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            <th class="py-3.5 px-4">№ Ордера</th>
+                            <th class="py-3.5 px-4">Вид</th>
+                            <th class="py-3.5 px-4">Инициатор</th>
+                            <th class="py-3.5 px-4">Объект / Цель</th>
+                            <th class="py-3.5 px-4 hidden md:table-cell">Статьи / Режим</th>
+                            <th class="py-3.5 px-4 hidden lg:table-cell">Выдал документ</th>
+                            <th class="py-3.5 px-4">Статус</th>
+                            <th class="py-3.5 px-4 text-right">Бланк</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody" class="divide-y divide-portal-border/80 text-sm">
+                        <tr>
+                            <td colspan="8" class="py-12 text-center text-slate-400">
+                                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-amber-400 mb-2"></i>
+                                <p class="text-sm">Загрузка реестра Department of Justice...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Пустой результат поиска -->
+            <div id="empty-state" class="hidden py-14 px-4 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center mx-auto text-slate-400 mb-3">
+                    <i class="fa-solid fa-file-circle-xmark text-2xl"></i>
+                </div>
+                <h3 class="text-base font-bold text-white">Записи не найдены</h3>
+                <p class="text-xs sm:text-sm text-slate-400 mt-1 max-w-md mx-auto">По заданным критериям поиска или выбранному подразделению ордеров в реестре нет.</p>
+                <button onclick="resetFilters()" class="mt-4 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-medium text-white transition">
+                    Показать все ордера
+                </button>
+            </div>
+
+            <!-- Нижняя панель пагинации -->
+            <div class="bg-portal-elevated/90 border-t border-portal-border px-4 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="text-xs text-slate-400 flex flex-wrap items-center gap-2">
+                    <span id="pagination-summary">Загрузка...</span>
+                    <span id="page-query-badge" class="px-2 py-0.5 rounded bg-portal-bg border border-portal-border font-mono text-[11px] text-amber-400">?page=1</span>
+                </div>
+
+                <div id="pagination-buttons" class="flex items-center gap-1.5">
+                    <!-- Кнопки страниц -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Подвал (Footer) -->
+    <footer class="bg-portal-card border-t border-portal-border py-6 px-4 mt-8">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+            <div class="flex items-center gap-2.5">
+                <i class="fa-solid fa-scale-balanced text-amber-400 text-base"></i>
+                <span>© 2026 Department of Justice • State of San Andreas. Все ордера вступают в силу с момента публикации в Едином реестре.</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="openModal('law-modal')" class="hover:text-amber-400 transition">Закон о системе ордеров</button>
+                <span class="text-slate-700">•</span>
+                <span class="font-mono text-slate-500">CLOUD-SYNC v3.7</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ========================================================================= -->
+    <!-- ЛОГИКА ПОРТАЛА (С ОБЛАЧНОЙ СИНХРОНИЗАЦИЕЙ FIREBASE)                      -->
+    <!-- ========================================================================= -->
+    <script>
+        let allOrders = [];
+        let deletedOrders = [];
+        let allProfiles = [];
+        let authLogs = [];
+        let currentPage = 1;
+        const ITEMS_PER_PAGE = 10;
+        let selectedFaction = 'ALL';
+        let selectedOrderDocId = null;
+        let confirmDeletePending = false;
+        let authorizedSession = null;
+        let cloudListenersActive = false;
+
+        const SEED_PROFILES = [
+            { id: 'prof_super', role: 'Администратор', name: 'Главный Администратор (S-ADMIN)', code: 'S-ADMIN-2345', isSuperAdmin: true, hidden: true, createdBy: 'Система' },
+            { id: 'prof_gov_1', role: 'Губернатор', name: 'Jonathan Sterling', code: 'ADMIN-777', isAdminRole: true, createdBy: 'Система' },
+            { id: 'prof_pro_1', role: 'Старший Прокурор', name: 'Aleksandr Volkov', code: 'PRO-109', createdBy: 'Jonathan Sterling' },
+            { id: 'prof_jud_1', role: 'Окружной судья', name: 'Arthur Pendelton', code: 'COURT-402', createdBy: 'Jonathan Sterling' }
+        ];
+
+        const PROFILE_CREATOR_PERMISSIONS = {
+            'Администратор': [
+                'Администратор', 'Председатель Верховного Суда', 'Зам. Председателя Верховного Суда', 'Верховный судья', 'Окружной судья',
+                'Губернатор', 'Вице-Губернатор', 'Министр Внутренней Безопасности', 'Зам. Министра Внутренней Безопасности',
+                'Министр Финансов', 'Зам. Министра Финансов', 'Генеральный Прокурор', 'Зам. Генерального Прокурора',
+                'Помощ. Генерального Прокурора', 'Старший Прокурор', 'Прокурор'
+            ],
+            'Губернатор': ['Вице-Губернатор', 'Министр Внутренней Безопасности', 'Зам. Министра Внутренней Безопасности', 'Министр Финансов', 'Зам. Министра Финансов'],
+            'Вице-Губернатор': ['Министр Внутренней Безопасности', 'Министр Финансов'],
+            'Председатель Верховного Суда': ['Зам. Председателя Верховного Суда', 'Верховный судья', 'Окружной судья'],
+            'Генеральный Прокурор': ['Зам. Генерального Прокурора', 'Помощ. Генерального Прокурора', 'Старший Прокурор', 'Прокурор']
+        };
+
+        const ROLE_TO_FACTION = {
+            'Администратор': 'GOV — Офис Губернатора',
+            'Губернатор': 'GOV — Офис Губернатора',
+            'Вице-Губернатор': 'GOV — Офис Губернатора',
+            'Министр Внутренней Безопасности': 'GOV — МВБ',
+            'Зам. Министра Внутренней Безопасности': 'GOV — МВБ',
+            'Министр Финансов': 'GOV — МФ',
+            'Зам. Министра Финансов': 'GOV — МФ',
+            'Председатель Верховного Суда': 'GOV — Суд',
+            'Зам. Председателя Верховного Суда': 'GOV — Суд',
+            'Верховный судья': 'GOV — Суд',
+            'Окружной судья': 'GOV — Суд',
+            'Генеральный Прокурор': 'GOV — Прокуратура',
+            'Зам. Генерального Прокурора': 'GOV — Прокуратура',
+            'Помощ. Генерального Прокурора': 'GOV — Прокуратура',
+            'Старший Прокурор': 'GOV — Прокуратура',
+            'Прокурор': 'GOV — Прокуратура'
+        };
+
+        const TYPE_PERMISSIONS = {
+            'AR': ['Генеральный Прокурор', 'Зам. Генерального Прокурора', 'Губернатор', 'Вице-Губернатор', 'Администратор'],
+            'AS': ['Генеральный Прокурор', 'Зам. Генерального Прокурора', 'Помощ. Генерального Прокурора', 'Старший Прокурор', 'Прокурор', 'Губернатор', 'Администратор'],
+            'ASC': ['Председатель Верховного Суда', 'Зам. Председателя Верховного Суда', 'Верховный судья', 'Окружной судья', 'Администратор'],
+            'SA': ['Председатель Верховного Суда', 'Зам. Председателя Верховного Суда', 'Верховный судья', 'Окружной судья', 'Генеральный Прокурор', 'Зам. Генерального Прокурора', 'Старший Прокурор', 'Прокурор', 'Администратор'],
+            'IA': ['Председатель Верховного Суда', 'Верховный судья', 'Окружной судья', 'Генеральный Прокурор', 'Зам. Генерального Прокурора', 'Администратор'],
+            'PTD': ['Председатель Верховного Суда', 'Верховный судья', 'Окружной судья', 'Генеральный Прокурор', 'Зам. Генерального Прокурора', 'Администратор'],
+            'AC': ['Губернатор', 'Вице-Губернатор', 'Председатель Верховного Суда', 'Министр Внутренней Безопасности', 'Зам. Министра Внутренней Безопасности', 'Генеральный Прокурор', 'Администратор'],
+            'SE': ['Губернатор', 'Вице-Губернатор', 'Генеральный Прокурор', 'Зам. Генерального Прокурора', 'Министр Внутренней Безопасности', 'Зам. Министра Внутренней Безопасности', 'Администратор'],
+            'MD': ['Губернатор', 'Вице-Губернатор', 'Министр Внутренней Безопасности', 'Зам. Министра Внутренней Безопасности', 'Администратор'],
+            'FR': ['Губернатор', 'Вице-Губернатор', 'Генеральный Прокурор', 'Зам. Генерального Прокурора', 'Министр Финансов', 'Зам. Министра Финансов', 'Администратор']
+        };
+
+        const TYPE_META = {
+            'AR': { title: 'Access To Raid', prefix: 'AR', badge: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
+            'AS': { title: 'Arrest and Search', prefix: 'AS', badge: 'bg-rose-500/15 text-rose-300 border-rose-500/30' },
+            'ASC': { title: 'Arrest and Search Court', prefix: 'ASC', badge: 'bg-rose-600/20 text-rose-200 border-rose-600/40' },
+            'SA': { title: 'Search Access', prefix: 'SA', badge: 'bg-sky-500/15 text-sky-300 border-sky-500/30' },
+            'IA': { title: 'Investigation Access', prefix: 'IA', badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+            'PTD': { title: 'Pre-Trial Detention', prefix: 'PTD', badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+            'AC': { title: 'Access To Cordon', prefix: 'AC', badge: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' },
+            'SE': { title: 'State of Emergency', prefix: 'SE', badge: 'bg-red-500/15 text-red-300 border-red-500/30' },
+            'MD': { title: 'Man-made disaster', prefix: 'MD', badge: 'bg-orange-500/15 text-orange-300 border-orange-500/30' },
+            'FR': { title: 'Financial Raid', prefix: 'FR', badge: 'bg-teal-500/15 text-teal-300 border-teal-500/30' }
+        };
+
+        const FACTION_META = {
+            'GOV — Прокуратура': 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
+            'GOV — Суд': 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+            'GOV — МВБ': 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+            'GOV — МФ': 'bg-teal-500/15 text-teal-300 border-teal-500/30',
+            'GOV — Офис Губернатора': 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+        };
+
+        const STATUS_META = {
+            'active': { label: 'АКТИВЕН', class: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+            'executed': { label: 'ИСПОЛНЕН', class: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
+            'canceled': { label: 'АННУЛИРОВАН', class: 'bg-rose-500/15 text-rose-300 border-rose-500/30' },
+            'deleted': { label: 'В АРХИВЕ', class: 'bg-purple-500/15 text-purple-300 border-purple-500/30' }
+        };
+
+        const SEED_ORDERS = [
+            { docId: 'ord_1', orderNumber: 'FR-2026-0018', type: 'FR', faction: 'GOV — МФ', targetName: 'Корпорация «Maze Bank Holdings»', targetStaticId: 'Юр. лицо', articles: '11.2, 11.4 УК SA', reason: 'Уклонение от уплаты налогов в особо крупном размере и легализация теневых капиталов.', issuedBy: 'Министр Финансов Richard Vance', executor: 'Министерство Финансов / FIB / USSS', status: 'active', validUntil: '48 часов с момента публикации', createdAtDisplay: '18.11.2026 16:45 UTC', sortOrder: 22 },
+            { docId: 'ord_2', orderNumber: 'ASC-2026-0412', type: 'ASC', faction: 'GOV — Суд', targetName: 'Viktor Krestovskiy', targetStaticId: '#48291', articles: '12.8, 17.1 УК SA', reason: 'Постановление Окружного Суда №1148. Вооружённое нападение на агентов CID при исполнении.', issuedBy: 'Окружной судья Arthur Pendelton', executor: 'USMS / FIB / LSPD / USSS', status: 'active', validUntil: '48 часов с момента публикации', createdAtDisplay: '18.11.2026 15:20 UTC', sortOrder: 21 },
+            { docId: 'ord_3', orderNumber: 'AR-2026-0094', type: 'AR', faction: 'GOV — Прокуратура', targetName: 'Баскетбольный клуб «The Families»', targetStaticId: 'Район Чемберлен-Хиллз', articles: '12.8, 13.4, 17.1 УК SA', reason: 'Одобренный Case-File №FIB-209. Зафиксированы систематические нападения на гос. структуры.', issuedBy: 'Генеральный Прокурор Aleksandr Volkov', executor: 'FIB / LSPD / USMS / SANG', status: 'active', validUntil: '24 часа с момента публикации', createdAtDisplay: '18.11.2026 14:10 UTC', sortOrder: 20 },
+            { docId: 'ord_4', orderNumber: 'SE-2026-0007', type: 'SE', faction: 'GOV — МВБ', targetName: 'Округ Лос-Сантос (Центральный район)', targetStaticId: 'Режим ЧП • Уровень угрозы: Высокий', articles: 'Особый режим ЧП', allowedActions: 'Досмотр граждан и личного транспорта на блокпостах без ордера, проверка документов у всех граждан, задержание лиц в масках до установления личности.', prohibitedActions: 'Ношение масок в общественных местах, открытое ношение любого оружия, массовые собрания свыше 5 человек, нахождение на улице в комендантский час (23:00–06:00).', reason: 'Серия вооружённых нападений на государственные колонны и угроза террористических актов в центральной части города.', issuedBy: 'Министр Внутренней Безопасности Thomas Vance', executor: 'FIB / LSPD / LSCSD / SANG / USSS', status: 'active', validUntil: 'На 12 часов с момента публикации', createdAtDisplay: '18.11.2026 12:00 UTC', sortOrder: 19 }
+        ];
+
+        function bindUIEvents() {
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    currentPage = 1;
+                    renderPortal();
+                });
+            }
+
+            const filterType = document.getElementById('filter-type');
+            if (filterType) {
+                filterType.addEventListener('change', () => {
+                    currentPage = 1;
+                    renderPortal();
+                });
+            }
+
+            const filterStatus = document.getElementById('filter-status');
+            if (filterStatus) {
+                filterStatus.addEventListener('change', () => {
+                    currentPage = 1;
+                    renderPortal();
+                });
+            }
+        }
+
+        function bootstrapApp() {
+            readInitialPageFromUrl();
+            startUtcClock();
+            bindUIEvents();
+            loadLocalData();
+            setSyncStatus('online', 'Онлайн • База загружена');
+            renderPortal();
+
+            // Check cloud initialization
+            setTimeout(() => {
+                if (window.firebaseAppReady) {
+                    initCloudListeners();
+                } else {
+                    const checkInterval = setInterval(() => {
+                        if (window.firebaseAppReady) {
+                            clearInterval(checkInterval);
+                            initCloudListeners();
+                        }
+                    }, 500);
+                }
+            }, 300);
+        }
+
+        window.initCloudListeners = function() {
+            if (cloudListenersActive || !window.db) return;
+            cloudListenersActive = true;
+            const { collection, onSnapshot } = window.firebaseModules;
+            const appId = window.firebaseAppId;
+
+            const badge = document.getElementById('cloud-status-badge');
+            if (badge) badge.textContent = 'Облако синхронизировано 🟢';
+
+            // Real-time Orders Listener
+            onSnapshot(collection(window.db, 'artifacts', appId, 'public', 'data', 'orders'), (snapshot) => {
+                let cloudOrders = [];
+                snapshot.forEach(docSnap => {
+                    cloudOrders.push(docSnap.data());
+                });
+                if (cloudOrders.length > 0) {
+                    allOrders = cloudOrders;
+                    allOrders.sort((a, b) => (b.sortOrder || 0) - (a.sortOrder || 0));
+                    renderPortal();
+                } else if (allOrders.length > 0) {
+                    // Seed initial orders to cloud if empty
+                    allOrders.forEach(ord => saveOrderToCloud(ord));
+                }
+            }, (err) => {
+                console.warn("Cloud orders listener error:", err);
+            });
+
+            // Real-time Deleted Orders Listener
+            onSnapshot(collection(window.db, 'artifacts', appId, 'public', 'data', 'deleted_orders'), (snapshot) => {
+                let cloudDeleted = [];
+                snapshot.forEach(docSnap => {
+                    cloudDeleted.push(docSnap.data());
+                });
+                deletedOrders = cloudDeleted;
+            }, (err) => {});
+
+            // Real-time Profiles Listener
+            onSnapshot(collection(window.db, 'artifacts', appId, 'public', 'data', 'profiles'), (snapshot) => {
+                let cloudProfiles = [];
+                snapshot.forEach(docSnap => {
+                    cloudProfiles.push(docSnap.data());
+                });
+                if (cloudProfiles.length > 0) {
+                    allProfiles = cloudProfiles;
+                    const superAdminIndex = allProfiles.findIndex(p => p.isSuperAdmin);
+                    if (superAdminIndex === -1) {
+                        allProfiles.unshift({ ...SEED_PROFILES[0], hidden: true });
+                    } else {
+                        allProfiles[superAdminIndex].code = 'S-ADMIN-2345';
+                        allProfiles[superAdminIndex].hidden = true;
+                    }
+                    sortProfilesList();
+                } else {
+                    allProfiles.forEach(p => saveProfileToCloud(p));
+                }
+            }, (err) => {});
+
+            // Real-time Auth Logs Listener
+            onSnapshot(collection(window.db, 'artifacts', appId, 'public', 'data', 'auth_logs'), (snapshot) => {
+                let cloudLogs = [];
+                snapshot.forEach(docSnap => {
+                    cloudLogs.push(docSnap.data());
+                });
+                if (cloudLogs.length > 0) {
+                    authLogs = cloudLogs;
+                    authLogs.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+                }
+            }, (err) => {});
+        };
+
+        async function saveOrderToCloud(order) {
+            if (!window.db) return;
+            try {
+                const { doc, setDoc } = window.firebaseModules;
+                await setDoc(doc(window.db, 'artifacts', window.firebaseAppId, 'public', 'data', 'orders', order.docId), order);
+            } catch (e) {}
+        }
+
+        async function removeOrderFromCloud(docId) {
+            if (!window.db) return;
+            try {
+                const { doc, deleteDoc } = window.firebaseModules;
+                await deleteDoc(doc(window.db, 'artifacts', window.firebaseAppId, 'public', 'data', 'orders', docId));
+            } catch (e) {}
+        }
+
+        async function saveDeletedOrderToCloud(order) {
+            if (!window.db) return;
+            try {
+                const { doc, setDoc } = window.firebaseModules;
+                await setDoc(doc(window.db, 'artifacts', window.firebaseAppId, 'public', 'data', 'deleted_orders', order.docId), order);
+            } catch (e) {}
+        }
+
+        async function removeDeletedOrderFromCloud(docId) {
+            if (!window.db) return;
+            try {
+                const { doc, deleteDoc } = window.firebaseModules;
+                await deleteDoc(doc(window.db, 'artifacts', window.firebaseAppId, 'public', 'data', 'deleted_orders', docId));
+            } catch (e) {}
+        }
+
+        async function saveProfileToCloud(profile) {
+            if (!window.db) return;
+            try {
+                const { doc, setDoc } = window.firebaseModules;
+                await setDoc(doc(window.db, 'artifacts', window.firebaseAppId, 'public', 'data', 'profiles', profile.id), profile);
+            } catch (e) {}
+        }
+
+        async function removeProfileFromCloud(id) {
+            if (!window.db) return;
+            try {
+                const { doc, deleteDoc } = window.firebaseModules;
+                await deleteDoc(doc(window.db, 'artifacts', window.firebaseAppId, 'public', 'data', 'profiles', id));
+            } catch (e) {}
+        }
+
+        async function saveLogToCloud(logEntry) {
+            if (!window.db) return;
+            try {
+                const { doc, setDoc } = window.firebaseModules;
+                const logId = 'log_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                await setDoc(doc(window.db, 'artifacts', window.firebaseAppId, 'public', 'data', 'auth_logs', logId), { ...logEntry, id: logId });
+            } catch (e) {}
+        }
+
+        function loadLocalData() {
+            try {
+                const savedOrders = localStorage.getItem('sa_doj_orders_v37');
+                allOrders = savedOrders ? JSON.parse(savedOrders) : [...SEED_ORDERS];
+
+                const savedDeleted = localStorage.getItem('sa_doj_deleted_orders_v37');
+                deletedOrders = savedDeleted ? JSON.parse(savedDeleted) : [];
+
+                const savedProfiles = localStorage.getItem('sa_doj_profiles_v37');
+                allProfiles = savedProfiles ? JSON.parse(savedProfiles) : [...SEED_PROFILES];
+
+                const superAdminIndex = allProfiles.findIndex(p => p.isSuperAdmin);
+                if (superAdminIndex === -1) {
+                    allProfiles.unshift({ ...SEED_PROFILES[0], hidden: true });
+                } else {
+                    allProfiles[superAdminIndex].code = 'S-ADMIN-2345';
+                    allProfiles[superAdminIndex].role = 'Администратор';
+                    allProfiles[superAdminIndex].isSuperAdmin = true;
+                    allProfiles[superAdminIndex].hidden = true;
+                }
+
+                if (!allProfiles.some(p => p.code === 'ADMIN-777')) {
+                    allProfiles.splice(1, 0, SEED_PROFILES[1]);
+                }
+                sortProfilesList();
+
+                const savedLogs = localStorage.getItem('sa_doj_auth_logs_v37');
+                authLogs = savedLogs ? JSON.parse(savedLogs) : [];
+            } catch (e) {
+                allOrders = [...SEED_ORDERS];
+                deletedOrders = [];
+                allProfiles = [...SEED_PROFILES];
+                authLogs = [];
+            }
+        }
+
+        function saveLocalData() {
+            try {
+                localStorage.setItem('sa_doj_orders_v37', JSON.stringify(allOrders));
+                localStorage.setItem('sa_doj_deleted_orders_v37', JSON.stringify(deletedOrders));
+                localStorage.setItem('sa_doj_profiles_v37', JSON.stringify(allProfiles));
+                localStorage.setItem('sa_doj_auth_logs_v37', JSON.stringify(authLogs));
+            } catch (e) {}
+        }
+
+        function sortProfilesList() {
+            allProfiles.sort((a, b) => {
+                if (a.isSuperAdmin) return -1;
+                if (b.isSuperAdmin) return 1;
+                if (a.isAdminRole) return -1;
+                if (b.isAdminRole) return 1;
+                return a.role.localeCompare(b.role);
+            });
+        }
+
+        function setSyncStatus(status, text) {
+            const ind = document.getElementById('sync-indicator');
+            if (status === 'online') {
+                ind.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span>${escapeHtml(text)}`;
+            } else {
+                ind.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>${escapeHtml(text)}`;
+            }
+        }
+
+        function startUtcClock() {
+            setInterval(() => {
+                const now = new Date();
+                const utc = now.toUTCString().split(' ')[4] + ' UTC';
+                document.getElementById('utc-clock').textContent = utc;
+            }, 1000);
+        }
+
+        function openModal(modalId) {
+            const m = document.getElementById(modalId);
+            if (m) {
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+            }
+        }
+
+        function closeModal(modalId) {
+            const m = document.getElementById(modalId);
+            if (m) {
+                m.classList.add('hidden');
+                m.classList.remove('flex');
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'error' ? 'bg-rose-900/90 border-rose-700 text-white' : type === 'success' ? 'bg-emerald-900/90 border-emerald-700 text-white' : 'bg-portal-card border-amber-500/50 text-slate-200';
+            const icon = type === 'error' ? 'fa-circle-exclamation text-rose-400' : type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-circle-info text-amber-400';
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl border ${bgClass} shadow-xl flex items-center gap-3 text-xs sm:text-sm animate-bounce duration-300`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base shrink-0"></i><span>${escapeHtml(message)}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.4s ease';
+                setTimeout(() => toast.remove(), 400);
+            }, 3500);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function readInitialPageFromUrl() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const p = parseInt(params.get('page'));
+                if (!isNaN(p) && p > 0) currentPage = p;
+            } catch (e) {}
+        }
+
+        function updatePageUrlQuery() {
+            try {
+                const url = new URL(window.location);
+                url.searchParams.set('page', currentPage);
+                window.history.replaceState({}, '', url);
+                const badge = document.getElementById('page-query-badge');
+                if (badge) badge.textContent = `?page=${currentPage}`;
+            } catch (e) {}
+        }
+
+        function renderPortal() {
+            const searchVal = document.getElementById('search-input').value.toLowerCase().trim();
+            const filterType = document.getElementById('filter-type').value;
+            const filterStatus = document.getElementById('filter-status').value;
+
+            let filtered = allOrders.filter(o => {
+                if (selectedFaction !== 'ALL' && o.faction !== selectedFaction) return false;
+                if (filterType !== 'ALL' && o.type !== filterType) return false;
+                if (filterStatus !== 'ALL' && o.status !== filterStatus) return false;
+
+                if (searchVal) {
+                    const matchNum = o.orderNumber.toLowerCase().includes(searchVal);
+                    const matchTarget = o.targetName.toLowerCase().includes(searchVal);
+                    const matchStatic = (o.targetStaticId || '').toLowerCase().includes(searchVal);
+                    const matchArticles = (o.articles || '').toLowerCase().includes(searchVal);
+                    const matchIssuer = o.issuedBy.toLowerCase().includes(searchVal);
+                    const matchReason = (o.reason || '').toLowerCase().includes(searchVal);
+                    if (!matchNum && !matchTarget && !matchStatic && !matchArticles && !matchIssuer && !matchReason) return false;
+                }
+                return true;
+            });
+
+            updateStatistics();
+
+            const totalItems = filtered.length;
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            updatePageUrlQuery();
+
+            const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+            const pageItems = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+            const tbody = document.getElementById('orders-tbody');
+            const emptyState = document.getElementById('empty-state');
+
+            if (pageItems.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                tbody.innerHTML = pageItems.map(order => {
+                    const tMeta = TYPE_META[order.type] || TYPE_META.AS;
+                    const fBadge = FACTION_META[order.faction] || 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30';
+                    const sMeta = STATUS_META[order.status] || STATUS_META.active;
+                    const articlesOrMode = order.articles || 'Специальный режим';
+
+                    return `
+                        <tr class="hover:bg-portal-elevated/70 transition cursor-pointer group" onclick="openOrderSheet('${order.docId}')">
+                            <td class="py-3.5 px-4 font-mono font-bold text-amber-400 group-hover:text-amber-300">
+                                ${escapeHtml(order.orderNumber)}
+                            </td>
+                            <td class="py-3.5 px-4">
+                                <span class="px-2 py-0.5 text-xs font-mono font-bold rounded border ${tMeta.badge}">
+                                    ${escapeHtml(order.type)}
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-4">
+                                <span class="px-2 py-0.5 text-[11px] font-medium rounded border ${fBadge}">
+                                    ${escapeHtml(order.faction)}
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-4">
+                                <div class="font-bold text-white">${escapeHtml(order.targetName)}</div>
+                                <div class="text-xs font-mono text-slate-400">${escapeHtml(order.targetStaticId)}</div>
+                            </td>
+                            <td class="py-3.5 px-4 hidden md:table-cell text-xs text-slate-300 max-w-xs truncate">
+                                ${escapeHtml(articlesOrMode)}
+                            </td>
+                            <td class="py-3.5 px-4 hidden lg:table-cell text-xs text-slate-300">
+                                ${escapeHtml(order.issuedBy)}
+                            </td>
+                            <td class="py-3.5 px-4">
+                                <span class="px-2.5 py-1 text-[11px] font-mono font-bold rounded-full border ${sMeta.class}">
+                                    ${sMeta.label}
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-4 text-right">
+                                <button onclick="event.stopPropagation(); openOrderSheet('${order.docId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 text-xs font-medium transition shadow-sm">
+                                    <i class="fa-solid fa-file-contract mr-1"></i> Бланк
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            renderPaginationControls(totalItems, totalPages);
+        }
+
+        function updateStatistics() {
+            const total = allOrders.length;
+            const active = allOrders.filter(o => o.status === 'active').length;
+            const executed = allOrders.filter(o => o.status === 'executed').length;
+            const canceled = allOrders.filter(o => o.status === 'canceled').length;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-active').textContent = active;
+            document.getElementById('stat-executed').textContent = executed;
+            document.getElementById('stat-canceled').textContent = canceled;
+        }
+
+        function renderPaginationControls(totalItems, totalPages) {
+            const summary = document.getElementById('pagination-summary');
+            const buttonsContainer = document.getElementById('pagination-buttons');
+
+            const start = totalItems === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+            const end = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+            summary.textContent = `Показано с ${start} по ${end} из ${totalItems} ордеров`;
+
+            let html = `
+                <button onclick="changePage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled class="px-3 py-1.5 rounded-lg bg-portal-bg text-slate-600 border border-portal-border cursor-not-allowed text-xs"' : 'class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition"'}>
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+            `;
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === currentPage) {
+                    html += `<button class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs">${i}</button>`;
+                } else {
+                    html += `<button onclick="changePage(${i})" class="px-3 py-1.5 rounded-lg bg-portal-bg hover:bg-slate-800 text-slate-300 border border-portal-border text-xs transition">${i}</button>`;
+                }
+            }
+
+            html += `
+                <button onclick="changePage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled class="px-3 py-1.5 rounded-lg bg-portal-bg text-slate-600 border border-portal-border cursor-not-allowed text-xs"' : 'class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition"'}>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            `;
+
+            buttonsContainer.innerHTML = html;
+        }
+
+        window.changePage = function(p) {
+            currentPage = p;
+            renderPortal();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.setFactionFilter = function(faction) {
+            selectedFaction = faction;
+            currentPage = 1;
+
+            document.querySelectorAll('.faction-chip').forEach(btn => {
+                const f = btn.getAttribute('data-faction');
+                if (f === faction) {
+                    btn.className = 'faction-chip px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold transition';
+                } else {
+                    btn.className = 'faction-chip px-3 py-1.5 rounded-lg bg-portal-bg text-slate-400 border border-portal-border hover:bg-slate-800 hover:text-white font-bold transition';
+                }
+            });
+
+            renderPortal();
+        };
+
+        window.resetFilters = function() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('filter-type').value = 'ALL';
+            document.getElementById('filter-status').value = 'ALL';
+            window.setFactionFilter('ALL');
+        };
+
+        window.handleAuthButtonClick = function() {
+            if (authorizedSession) {
+                showToast(`Вы уже авторизованы как ${authorizedSession.role} (${authorizedSession.name})`, 'info');
+            } else {
+                openModal('login-modal');
+            }
+        };
+
+        window.submitAuthorizedLogin = function(e) {
+            e.preventDefault();
+            const role = document.getElementById('login-role').value;
+            const code = document.getElementById('login-code').value.trim();
+
+            const profile = allProfiles.find(p => p.code === code && (p.role === role || p.isSuperAdmin));
+            const clientIp = `192.168.${Math.floor(Math.random() * 200) + 1}.${Math.floor(Math.random() * 200) + 1}`;
+
+            if (profile) {
+                authorizedSession = profile;
+                const newLog = {
+                    timestamp: formatUtcDateShort(new Date()),
+                    role: profile.role,
+                    name: profile.name,
+                    ip: clientIp,
+                    status: 'УСПЕШНО'
+                };
+                authLogs.unshift(newLog);
+                saveLogToCloud(newLog);
+                saveLocalData();
+                closeModal('login-modal');
+                applyAuthorizedState();
+                showToast(`Добро пожаловать, ${profile.role} ${profile.name}!`, 'success');
+            } else {
+                const failLog = {
+                    timestamp: formatUtcDateShort(new Date()),
+                    role: role,
+                    name: 'Неизвестный субъект',
+                    ip: clientIp,
+                    status: 'ОТКАЗ (Неверный код)'
+                };
+                authLogs.unshift(failLog);
+                saveLogToCloud(failLog);
+                saveLocalData();
+                showToast('Ошибка авторизации: неверный индивидуальный код доступа!', 'error');
+            }
+        };
+
+        function applyAuthorizedState() {
+            if (!authorizedSession) return;
+            const bar = document.getElementById('authorized-bar');
+            bar.classList.remove('hidden');
+
+            document.getElementById('authorized-user-title').textContent = `Авторизован: ${authorizedSession.role} • ${authorizedSession.name}`;
+
+            const manageBtn = document.getElementById('manage-profiles-btn');
+            const archiveBtn = document.getElementById('view-archive-btn');
+            const adminBadge = document.getElementById('authorized-admin-badge');
+            const superAdminBadge = document.getElementById('authorized-superadmin-badge');
+            const logsBtn = document.getElementById('view-logs-btn');
+
+            archiveBtn.classList.remove('hidden');
+
+            if (authorizedSession.isSuperAdmin) {
+                manageBtn.classList.remove('hidden');
+                superAdminBadge.classList.remove('hidden');
+                adminBadge.classList.add('hidden');
+                logsBtn.classList.remove('hidden');
+            } else if (authorizedSession.isAdminRole) {
+                manageBtn.classList.remove('hidden');
+                adminBadge.classList.remove('hidden');
+                superAdminBadge.classList.add('hidden');
+                logsBtn.classList.add('hidden');
+            } else {
+                const allowed = PROFILE_CREATOR_PERMISSIONS[authorizedSession.role];
+                if (allowed && allowed.length > 0) {
+                    manageBtn.classList.remove('hidden');
+                    adminBadge.classList.remove('hidden');
+                } else {
+                    manageBtn.classList.add('hidden');
+                    adminBadge.classList.add('hidden');
+                }
+                superAdminBadge.classList.add('hidden');
+                logsBtn.classList.add('hidden');
+            }
+
+            const mainBtn = document.getElementById('auth-toggle-btn');
+            mainBtn.innerHTML = '<i class="fa-solid fa-shield-check"></i><span id="auth-btn-label">Сеанс активен</span>';
+            mainBtn.className = 'px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-lg';
+        }
+
+        window.logoutAuthorized = function() {
+            authorizedSession = null;
+            document.getElementById('authorized-bar').classList.add('hidden');
+            document.getElementById('manage-profiles-btn').classList.add('hidden');
+            document.getElementById('view-archive-btn').classList.add('hidden');
+            document.getElementById('authorized-admin-badge').classList.add('hidden');
+            document.getElementById('authorized-superadmin-badge').classList.add('hidden');
+            document.getElementById('view-logs-btn').classList.add('hidden');
+
+            const mainBtn = document.getElementById('auth-toggle-btn');
+            mainBtn.innerHTML = '<i class="fa-solid fa-gavel"></i><span id="auth-btn-label">Вход для уполномоченных лиц</span>';
+            mainBtn.className = 'px-4 py-2.5 rounded-xl bg-portal-blue hover:bg-blue-600 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2 shadow-lg shadow-blue-950/50';
+
+            showToast('Сеанс завершен. Вы вышли из системы.', 'info');
+        };
+
+        window.openOrderSheet = function(docId) {
+            const order = allOrders.find(o => o.docId === docId);
+            if (!order) return;
+
+            selectedOrderDocId = docId;
+            confirmDeletePending = false;
+            const delBtn = document.getElementById('delete-order-btn');
+            delBtn.innerHTML = '<i class="fa-solid fa-box-archive mr-1"></i>В архив';
+            delBtn.classList.remove('bg-rose-600', 'text-white');
+
+            const tMeta = TYPE_META[order.type] || TYPE_META.AS;
+            const fBadge = FACTION_META[order.faction] || 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30';
+            const sMeta = STATUS_META[order.status] || STATUS_META.active;
+            const dateStr = order.createdAtDisplay || '18.11.2026 18:00 UTC';
+            const isEmg = isEmergencyOrderType(order.type);
+
+            let statusAuditBlock = '';
+            if (order.status === 'executed' || order.status === 'canceled' || order.status === 'deleted') {
+                const isExecuted = order.status === 'executed';
+                const isCanceled = order.status === 'canceled';
+                const boxStyle = isExecuted ? 'bg-blue-500/10 border-blue-500/30 text-blue-200' : isCanceled ? 'bg-rose-500/10 border-rose-500/30 text-rose-200' : 'bg-purple-500/10 border-purple-500/30 text-purple-200';
+                const iconClass = isExecuted ? 'fa-solid fa-circle-check text-blue-400' : isCanceled ? 'fa-solid fa-ban text-rose-400' : 'fa-solid fa-box-archive text-purple-400';
+                const actionLabel = isExecuted ? 'Отметку об исполнении поставил:' : isCanceled ? 'Ордер аннулировал:' : 'Переместил в архив (удалил):';
+                const actorName = order.statusChangedBy || order.issuedBy || 'Уполномоченное лицо';
+                const actionTime = order.statusChangedAt ? ` • ${escapeHtml(order.statusChangedAt)}` : '';
+
+                statusAuditBlock = `
+                    <div class="p-3.5 rounded-xl border ${boxStyle} flex items-start gap-3 text-xs">
+                        <i class="${iconClass} text-base mt-0.5"></i>
+                        <div>
+                            <span class="uppercase tracking-wider font-bold opacity-80 block text-[10px]">${actionLabel}</span>
+                            <span class="font-bold text-white text-sm">${escapeHtml(actorName)}</span>
+                            <span class="font-mono text-[11px] opacity-80">${actionTime}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let dynamicFieldsSheetHtml = '';
+            if (isEmg) {
+                dynamicFieldsSheetHtml = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block mb-1">Разрешенные полномочия:</span>
+                            <p class="text-xs text-slate-200 leading-relaxed">${escapeHtml(order.allowedActions || 'Не указано')}</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-rose-950/20 border border-rose-500/30">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-rose-400 block mb-1">Ограничения и запреты:</span>
+                            <p class="text-xs text-slate-200 leading-relaxed">${escapeHtml(order.prohibitedActions || 'Не указано')}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Задействованные ведомства:</span>
+                        <div class="p-3 rounded-xl bg-portal-bg border border-portal-border font-mono text-xs text-amber-300">
+                            ${escapeHtml(order.executor)}
+                        </div>
+                    </div>
+                `;
+            } else {
+                dynamicFieldsSheetHtml = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Нарушенные статьи УК / АК:</span>
+                            <div class="p-3 rounded-xl bg-portal-bg border border-portal-border font-mono text-xs font-bold text-white">
+                                ${escapeHtml(order.articles || '—')}
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Исполняющие структуры:</span>
+                            <div class="p-3 rounded-xl bg-portal-bg border border-portal-border font-mono text-xs text-amber-300">
+                                ${escapeHtml(order.executor || 'FIB / LSPD / USSS')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const sheetHtml = `
+                <div class="bg-portal-card border border-amber-500/30 rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xl relative">
+                    <div class="absolute top-4 right-4 opacity-15 pointer-events-none">
+                        <div class="stamp-seal w-28 h-28 rounded-full flex items-center justify-center text-amber-400 font-black text-center text-xs p-2 uppercase tracking-tighter">
+                            San Andreas DOJ • Official Seal
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-portal-border pb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-lg font-mono">
+                                DOJ
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-extrabold text-white">ГОСУДАРСТВЕННЫЙ ОРДЕР ШТАТА SAN ANDREAS</h4>
+                                <p class="text-xs font-mono text-amber-400">${escapeHtml(order.orderNumber)}</p>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 text-xs font-mono font-bold rounded-full border ${sMeta.class}">
+                            ${sMeta.label}
+                        </span>
+                    </div>
+
+                    ${statusAuditBlock}
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="p-3 rounded-xl bg-portal-bg border border-portal-border">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Вид ордера</span>
+                            <span class="text-xs font-bold text-white">${escapeHtml(tMeta.title)} (${escapeHtml(order.type)})</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-portal-bg border border-portal-border">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Инициатор (GOV)</span>
+                            <span class="text-xs font-bold text-amber-300">${escapeHtml(order.faction)}</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-portal-bg border border-portal-border">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Дата публикации</span>
+                            <span class="text-xs font-mono text-slate-200">${escapeHtml(dateStr)}</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="sm:col-span-2 p-3 rounded-xl bg-portal-bg border border-portal-border">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Объект / Цель / Территория</span>
+                            <span class="text-sm font-bold text-white">${escapeHtml(order.targetName)}</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-portal-bg border border-portal-border">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Static ID</span>
+                            <span class="text-xs font-mono text-amber-400 font-bold">${escapeHtml(order.targetStaticId)}</span>
+                        </div>
+                    </div>
+
+                    ${dynamicFieldsSheetHtml}
+
+                    <div class="p-3.5 rounded-xl bg-portal-bg border border-portal-border space-y-1">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Фабула дела и основание выдачи</span>
+                        <p class="text-xs sm:text-sm text-slate-200 leading-relaxed">${escapeHtml(order.reason)}</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                        <div class="p-3 rounded-xl bg-portal-bg border border-portal-border">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Срок действия</span>
+                            <span class="text-xs font-mono text-slate-200">${escapeHtml(order.validUntil)}</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-portal-bg border border-portal-border">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Выдал уполномоченный сотрудник</span>
+                            <span class="text-xs font-bold text-amber-300">${escapeHtml(order.issuedBy)}</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-between border-t border-portal-border text-[11px] text-slate-500 font-mono">
+                        <span>DOC_UID: ${escapeHtml(order.docId)}</span>
+                        <div class="w-32 h-4 barcode-strip opacity-70 rounded"></div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('order-sheet-content').innerHTML = sheetHtml;
+
+            const adminControls = document.getElementById('sheet-admin-controls');
+            if (authorizedSession && order.status === 'active') {
+                adminControls.classList.remove('hidden');
+            } else {
+                adminControls.classList.add('hidden');
+            }
+
+            openModal('view-modal');
+        };
+
+        window.updateOrderStatus = function(newStatus) {
+            if (!selectedOrderDocId || !authorizedSession) return;
+            const order = allOrders.find(o => o.docId === selectedOrderDocId);
+            if (!order) return;
+
+            order.status = newStatus;
+            order.statusChangedBy = `${authorizedSession.role} ${authorizedSession.name}`;
+            order.statusChangedAt = formatUtcDateShort(new Date());
+
+            saveOrderToCloud(order);
+            saveLocalData();
+            renderPortal();
+            openOrderSheet(selectedOrderDocId);
+            showToast(`Статус ордера изменен на: ${STATUS_META[newStatus].label}`, 'success');
+        };
+
+        window.handleDeleteOrder = function() {
+            if (!selectedOrderDocId || !authorizedSession) return;
+            const delBtn = document.getElementById('delete-order-btn');
+
+            if (!confirmDeletePending) {
+                confirmDeletePending = true;
+                delBtn.innerHTML = 'Подтвердить перенос в архив?';
+                delBtn.classList.add('bg-rose-600', 'text-white');
+                return;
+            }
+
+            const orderIdx = allOrders.findIndex(o => o.docId === selectedOrderDocId);
+            if (orderIdx === -1) return;
+
+            const order = allOrders[orderIdx];
+            const actorFull = `${authorizedSession.role} ${authorizedSession.name}`;
+            
+            order.status = 'deleted';
+            order.statusChangedBy = actorFull;
+            order.statusChangedAt = formatUtcDateShort(new Date());
+
+            allOrders.splice(orderIdx, 1);
+            deletedOrders.unshift(order);
+
+            removeOrderFromCloud(order.docId);
+            saveDeletedOrderToCloud(order);
+            saveLocalData();
+            renderPortal();
+            closeModal('view-modal');
+            showToast('Ордер успешно перемещен в архив удаленных', 'info');
+        };
+
+        window.openArchiveModal = function() {
+            if (!authorizedSession) {
+                showToast('Требуется авторизация', 'error');
+                return;
+            }
+            renderArchiveTable();
+            openModal('archive-modal');
+        };
+
+        function renderArchiveTable() {
+            const tbody = document.getElementById('archive-tbody');
+            document.getElementById('archive-count-val').textContent = deletedOrders.length;
+
+            if (deletedOrders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">Архив удаленных ордеров пуст.</td></tr>`;
+                return;
+            }
+
+            const isSuperAdmin = !!authorizedSession?.isSuperAdmin;
+
+            tbody.innerHTML = deletedOrders.map(order => {
+                const tMeta = TYPE_META[order.type] || TYPE_META.AS;
+                const deletedInfo = order.statusChangedBy || 'Неизвестно';
+                const deletedTime = order.statusChangedAt || '—';
+
+                const deleteForeverBtn = isSuperAdmin
+                    ? `<button onclick="window.permanentDeleteOrder('${order.docId}')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition shadow-sm" title="Стереть навсегда (доступно только Главном админу)">
+                           <i class="fa-solid fa-trash-can mr-1"></i>Стереть навсегда
+                       </button>`
+                    : `<span class="text-[11px] text-slate-500 font-mono" title="Только Главный Админ может стирать навсегда">Только Главный Админ</span>`;
+
+                return `
+                    <tr class="hover:bg-portal-elevated/60 transition">
+                        <td class="py-3 px-3.5 font-mono font-bold text-amber-400">${escapeHtml(order.orderNumber)}</td>
+                        <td class="py-3 px-3.5">
+                            <div class="font-semibold text-white">${escapeHtml(order.targetName)}</div>
+                            <div class="text-xs text-slate-400">${escapeHtml(tMeta.title)}</div>
+                        </td>
+                        <td class="py-3 px-3.5 text-xs text-slate-300">${escapeHtml(order.issuedBy)}</td>
+                        <td class="py-3 px-3.5">
+                            <div class="font-semibold text-rose-300">${escapeHtml(deletedInfo)}</div>
+                            <div class="text-[11px] font-mono text-slate-400">${escapeHtml(deletedTime)}</div>
+                        </td>
+                        <td class="py-3 px-3.5 text-right">${deleteForeverBtn}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        window.permanentDeleteOrder = function(docId) {
+            if (!authorizedSession || !authorizedSession.isSuperAdmin) {
+                showToast('Ошибка доступа: стирать ордера навсегда может только Главный Администратор!', 'error');
+                return;
+            }
+
+            deletedOrders = deletedOrders.filter(o => o.docId !== docId);
+            removeDeletedOrderFromCloud(docId);
+            saveLocalData();
+            renderArchiveTable();
+            showToast('Ордер полностью стерт из архива навсегда', 'success');
+        };
+
+        window.openProfilesModal = function() {
+            if (!authorizedSession) return;
+            renderProfilesTable();
+            populateRoleDropdownForCreation();
+            openModal('profiles-modal');
+        };
+
+        function populateRoleDropdownForCreation() {
+            const select = document.getElementById('new-profile-role');
+            let allowedRoles = [];
+
+            if (authorizedSession.isSuperAdmin) {
+                allowedRoles = [
+                    'Администратор',
+                    'Председатель Верховного Суда', 'Зам. Председателя Верховного Суда', 'Верховный судья', 'Окружной судья',
+                    'Губернатор', 'Вице-Губернатор', 'Министр Внутренней Безопасности', 'Зам. Министра Внутренней Безопасности',
+                    'Министр Финансов', 'Зам. Министра Финансов', 'Генеральный Прокурор', 'Зам. Генерального Прокурора',
+                    'Помощ. Генерального Прокурора', 'Старший Прокурор', 'Прокурор'
+                ];
+            } else {
+                allowedRoles = PROFILE_CREATOR_PERMISSIONS[authorizedSession.role] || [];
+            }
+
+            select.innerHTML = allowedRoles.map(r => `<option value="${r}">${r}</option>`).join('');
+            if (allowedRoles.length > 0) {
+                window.generateRandomAccessCode();
+            }
+        }
+
+        window.generateRandomAccessCode = function() {
+            const roleSelect = document.getElementById('new-profile-role');
+            const role = roleSelect ? roleSelect.value : 'PRO';
+            let prefix = 'DOJ';
+            if (role.includes('судья') || role.includes('Суд')) prefix = 'COURT';
+            else if (role.includes('Губернатор')) prefix = 'GOV';
+            else if (role.includes('Министр')) prefix = 'MIN';
+            else if (role.includes('Прокурор')) prefix = 'PRO';
+
+            const randNum = Math.floor(Math.random() * 8999) + 1000;
+            document.getElementById('new-profile-code').value = `${prefix}-${randNum}`;
+        };
+
+        window.submitCreateProfile = function(e) {
+            e.preventDefault();
+            if (!authorizedSession) return;
+
+            const role = document.getElementById('new-profile-role').value;
+            const name = document.getElementById('new-profile-name').value.trim();
+            const code = document.getElementById('new-profile-code').value.trim();
+
+            if (allProfiles.some(p => p.code === code)) {
+                showToast('Ошибка: такой персональный код уже используется в реестре!', 'error');
+                return;
+            }
+
+            const newProf = {
+                id: 'prof_' + Date.now(),
+                role: role,
+                name: name,
+                code: code,
+                createdBy: `${authorizedSession.role} ${authorizedSession.name}`
+            };
+
+            allProfiles.push(newProf);
+            sortProfilesList();
+            saveProfileToCloud(newProf);
+            saveLocalData();
+            renderProfilesTable();
+
+            document.getElementById('new-profile-name').value = '';
+            window.generateRandomAccessCode();
+            showToast(`Профиль сотрудника (${role}) успешно создан!`, 'success');
+        };
+
+        function renderProfilesTable() {
+            const tbody = document.getElementById('profiles-tbody');
+            let relevantProfiles = allProfiles.filter(p => !p.isSuperAdmin && !p.hidden);
+
+            if (!authorizedSession.isSuperAdmin) {
+                const allowed = PROFILE_CREATOR_PERMISSIONS[authorizedSession.role] || [];
+                relevantProfiles = relevantProfiles.filter(p => allowed.includes(p.role) || p.id === authorizedSession.id);
+            }
+
+            document.getElementById('profiles-count-badge').textContent = `${relevantProfiles.length} профилей`;
+
+            tbody.innerHTML = relevantProfiles.map(p => {
+                const canDelete = authorizedSession.isSuperAdmin || (p.id !== authorizedSession.id && !p.isSuperAdmin);
+                const actionBtn = canDelete
+                    ? `<div class="flex items-center justify-end gap-1.5">
+                           <button onclick="window.openEditProfileModal('${p.id}')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs transition" title="Редактировать">
+                               <i class="fa-solid fa-pen"></i>
+                           </button>
+                           <button onclick="window.deleteProfile('${p.id}')" class="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs transition" title="Отозвать профиль">
+                               <i class="fa-solid fa-trash"></i>
+                           </button>
+                       </div>`
+                    : `<span class="text-[11px] text-slate-500 font-mono">Основной аккаунт</span>`;
+
+                return `
+                    <tr class="hover:bg-portal-elevated/60 transition">
+                        <td class="py-2.5 px-3.5 font-semibold text-white">${escapeHtml(p.role)}</td>
+                        <td class="py-2.5 px-3.5 text-slate-200">${escapeHtml(p.name)}</td>
+                        <td class="py-2.5 px-3.5 font-mono text-amber-300">${escapeHtml(p.code)}</td>
+                        <td class="py-2.5 px-3.5 hidden sm:table-cell text-xs text-slate-400">${escapeHtml(p.createdBy || 'Система')}</td>
+                        <td class="py-2.5 px-3.5 text-right">${actionBtn}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        window.openEditProfileModal = function(id) {
+            const profile = allProfiles.find(p => p.id === id);
+            if (!profile) return;
+
+            document.getElementById('edit-profile-id').value = profile.id;
+            document.getElementById('edit-profile-name').value = profile.name;
+            document.getElementById('edit-profile-code').value = profile.code;
+
+            const select = document.getElementById('edit-profile-role');
+            let allowedRoles = [];
+            if (authorizedSession.isSuperAdmin) {
+                allowedRoles = [
+                    'Председатель Верховного Суда', 'Зам. Председателя Верховного Суда', 'Верховный судья', 'Окружной судья',
+                    'Губернатор', 'Вице-Губернатор', 'Министр Внутренней Безопасности', 'Зам. Министра Внутренней Безопасности',
+                    'Министр Финансов', 'Зам. Министра Финансов', 'Генеральный Прокурор', 'Зам. Генерального Прокурора',
+                    'Помощ. Генерального Прокурора', 'Старший Прокурор', 'Прокурор'
+                ];
+            } else {
+                allowedRoles = PROFILE_CREATOR_PERMISSIONS[authorizedSession.role] || [];
+            }
+            select.innerHTML = allowedRoles.map(r => `<option value="${r}" ${r === profile.role ? 'selected' : ''}>${r}</option>`).join('');
+
+            openModal('edit-profile-modal');
+        };
+
+        window.submitEditProfile = function(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-profile-id').value;
+            const profile = allProfiles.find(p => p.id === id);
+            if (!profile) return;
+
+            profile.role = document.getElementById('edit-profile-role').value;
+            profile.name = document.getElementById('edit-profile-name').value.trim();
+            profile.code = document.getElementById('edit-profile-code').value.trim();
+
+            sortProfilesList();
+            saveProfileToCloud(profile);
+            saveLocalData();
+            renderProfilesTable();
+            closeModal('edit-profile-modal');
+            showToast('Профиль сотрудника успешно обновлен', 'success');
+        };
+
+        window.deleteProfile = function(id) {
+            allProfiles = allProfiles.filter(p => p.id !== id);
+            removeProfileFromCloud(id);
+            saveLocalData();
+            renderProfilesTable();
+            showToast('Профиль сотрудника отозван из системы', 'info');
+        };
+
+        window.openLogsModal = function() {
+            if (!authorizedSession || !authorizedSession.isSuperAdmin) {
+                showToast('Доступ запрещен: журнал входов доступен только Главном Администратору', 'error');
+                return;
+            }
+            renderLogsTable();
+            openModal('logs-modal');
+        };
+
+        function renderLogsTable() {
+            const tbody = document.getElementById('logs-tbody');
+            document.getElementById('logs-count-val').textContent = authLogs.length;
+
+            if (authLogs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400 font-sans">Журнал аутентификации пуст.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = authLogs.map(l => {
+                const isSuccess = l.status.includes('УСПЕШНО');
+                const badgeClass = isSuccess ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded' : 'text-rose-400 bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded';
+
+                return `
+                    <tr class="hover:bg-portal-elevated/60 transition">
+                        <td class="py-2.5 px-3.5 text-xs text-slate-300 font-sans">${escapeHtml(l.timestamp)}</td>
+                        <td class="py-2.5 px-3.5 text-xs text-amber-300 font-sans">${escapeHtml(l.role)}</td>
+                        <td class="py-2.5 px-3.5 text-xs text-white font-sans">${escapeHtml(l.name)}</td>
+                        <td class="py-2.5 px-3.5 text-xs text-slate-300">${escapeHtml(l.ip)}</td>
+                        <td class="py-2.5 px-3.5 text-xs font-sans text-right"><span class="${badgeClass}">${escapeHtml(l.status)}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        window.clearAuthLogs = function() {
+            authLogs = [];
+            saveLocalData();
+            renderLogsTable();
+            showToast('Журнал логов входов очищен', 'info');
+        };
+
+        window.openCreateOrderModal = function() {
+            if (!authorizedSession) {
+                showToast('Для выписки ордера необходимо авторизоваться', 'error');
+                openModal('login-modal');
+                return;
+            }
+
+            const typeSelect = document.getElementById('form-type');
+            const allowedTypes = Object.keys(TYPE_PERMISSIONS).filter(t => {
+                const roles = TYPE_PERMISSIONS[t];
+                return authorizedSession.isSuperAdmin || roles.includes(authorizedSession.role);
+            });
+
+            if (allowedTypes.length === 0) {
+                showToast('Ваша должность не имеет полномочий на выдачу ордеров', 'error');
+                return;
+            }
+
+            typeSelect.innerHTML = allowedTypes.map(t => `<option value="${t}">${t} — ${TYPE_META[t].title}</option>`).join('');
+
+            const factionSelect = document.getElementById('form-faction');
+            const userFaction = ROLE_TO_FACTION[authorizedSession.role] || 'GOV — Прокуратура';
+            factionSelect.innerHTML = `<option value="${userFaction}">${userFaction}</option>`;
+
+            document.getElementById('form-issued-by').value = `${authorizedSession.role} ${authorizedSession.name}`;
+
+            onOrderTypeChange();
+            openModal('create-modal');
+        };
+
+        window.onOrderTypeChange = function() {
+            const type = document.getElementById('form-type').value;
+            const prefix = TYPE_META[type]?.prefix || 'AS';
+            const randomNum = Math.floor(Math.random() * 8999) + 1000;
+            document.getElementById('form-order-number').value = `${prefix}-2026-${randomNum}`;
+
+            const hintText = document.getElementById('order-type-hint-text');
+            const stdBlock = document.getElementById('block-standard-articles');
+            const emgBlock = document.getElementById('block-emergency-rules');
+            const validUntilSelect = document.getElementById('form-valid-until');
+
+            const isEmg = isEmergencyOrderType(type);
+
+            if (isEmg) {
+                stdBlock.classList.add('hidden');
+                emgBlock.classList.remove('hidden');
+                document.getElementById('label-target-name').textContent = 'Объект / Зона введения (Название) *';
+                document.getElementById('label-target-static').textContent = 'Уровень угрозы / Статус *';
+                document.getElementById('form-target-static').value = 'Режим ЧП • Уровень: Высокий';
+
+                if (type === 'SE') {
+                    hintText.textContent = 'Ордер SE вводит режим чрезвычайного положения. Требует указания разрешенных и запрещенных полномочий.';
+                    validUntilSelect.innerHTML = `
+                        <option value="На 12 часов с момента публикации">На 12 часов с момента публикации</option>
+                        <option value="На 24 часа с момента публикации">На 24 часа с момента публикации</option>
+                        <option value="На 48 часов с момента публикации">На 48 часов с момента публикации</option>
+                        <option value="custom">Указать точный срок вручную...</option>
+                    `;
+                } else if (type === 'MD') {
+                    hintText.textContent = 'Ордер MD вводит режим ликвидации техногенной катастрофы и закрытия зон бедствия.';
+                    validUntilSelect.innerHTML = `
+                        <option value="До полного устранения последствий катастрофы">До полного устранения последствий катастрофы</option>
+                        <option value="На 24 часа с момента публикации">На 24 часа с момента публикации</option>
+                        <option value="custom">Указать точный срок вручную...</option>
+                    `;
+                } else {
+                    hintText.textContent = 'Ордер AC вводит режим оцепления территории.';
+                    validUntilSelect.innerHTML = `
+                        <option value="На 12 часов с момента публикации">На 12 часов с момента публикации</option>
+                        <option value="На 24 часа с момента публикации">На 24 часа с момента публикации</option>
+                        <option value="custom">Указать точный срок вручную...</option>
+                    `;
+                }
+            } else {
+                stdBlock.classList.remove('hidden');
+                emgBlock.classList.add('hidden');
+                document.getElementById('label-target-name').textContent = 'Цель (Имя Фамилия) *';
+                document.getElementById('label-target-static').textContent = 'Static ID *';
+                document.getElementById('form-target-static').value = '#';
+
+                hintText.textContent = `Выдачу ордера ${type} регламентирует закон штата San Andreas. Требуется номер делопроизводства или решения суда.`;
+                validUntilSelect.innerHTML = `
+                    <option value="24 часа с момента публикации">24 часа с момента публикации</option>
+                    <option value="48 часов с момента публикации" selected>48 часов с момента публикации</option>
+                    <option value="72 часа с момента публикации">72 часа с момента публикации</option>
+                    <option value="До исполнения судебного решения">До исполнения судебного решения</option>
+                    <option value="custom">Указать точный срок вручную...</option>
+                `;
+            }
+            toggleCustomDurationInput();
+        };
+
+        function isEmergencyOrderType(type) {
+            return type === 'SE' || type === 'MD' || type === 'AC';
+        }
+
+        window.toggleCustomDurationInput = function() {
+            const select = document.getElementById('form-valid-until');
+            const customInput = document.getElementById('form-valid-custom');
+            if (select.value === 'custom') {
+                customInput.classList.remove('hidden');
+                customInput.required = true;
+            } else {
+                customInput.classList.add('hidden');
+                customInput.required = false;
+            }
+        };
+
+        window.submitNewOrder = function(e) {
+            e.preventDefault();
+            if (!authorizedSession) return;
+
+            const type = document.getElementById('form-type').value;
+            const orderNumber = document.getElementById('form-order-number').value.trim();
+            const faction = document.getElementById('form-faction').value;
+            const targetName = document.getElementById('form-target-name').value.trim();
+            const targetStaticId = document.getElementById('form-target-static').value.trim();
+            const reason = document.getElementById('form-reason').value.trim();
+            const issuedBy = document.getElementById('form-issued-by').value;
+
+            let validUntil = document.getElementById('form-valid-until').value;
+            if (validUntil === 'custom') {
+                validUntil = document.getElementById('form-valid-custom').value.trim();
+            }
+
+            const isEmg = isEmergencyOrderType(type);
+            let newOrderData = {
+                docId: 'ord_' + Date.now(),
+                orderNumber,
+                type,
+                faction,
+                targetName,
+                targetStaticId,
+                reason,
+                issuedBy,
+                status: 'active',
+                validUntil,
+                createdAtDisplay: formatUtcDateShort(new Date()),
+                sortOrder: Date.now()
+            };
+
+            if (isEmg) {
+                newOrderData.allowedActions = document.getElementById('form-allowed-actions').value.trim();
+                newOrderData.prohibitedActions = document.getElementById('form-prohibited-actions').value.trim();
+                newOrderData.executor = document.getElementById('form-executor-emg').value.trim() || 'FIB / LSPD / SANG';
+            } else {
+                newOrderData.articles = document.getElementById('form-articles').value.trim();
+                newOrderData.executor = document.getElementById('form-executor').value.trim();
+            }
+
+            allOrders.unshift(newOrderData);
+            saveOrderToCloud(newOrderData);
+            saveLocalData();
+            renderPortal();
+            closeModal('create-modal');
+            document.getElementById('create-order-form').reset();
+            showToast(`Ордер ${orderNumber} успешно опубликован в Едином реестре!`, 'success');
+        };
+
+        function formatUtcDateShort(date) {
+            const day = String(date.getUTCDate()).padStart(2, '0');
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const year = date.getUTCFullYear();
+            const hours = String(date.getUTCHours()).padStart(2, '0');
+            const mins = String(date.getUTCMinutes()).padStart(2, '0');
+            return `${day}.${month}.${year} ${hours}:${mins} UTC`;
+        }
+
+        window.copyDiscordReport = function() {
+            if (!selectedOrderDocId) return;
+            const order = allOrders.find(o => o.docId === selectedOrderDocId);
+            if (!order) return;
+
+            const isEmg = isEmergencyOrderType(order.type);
+            let discordText = `⚖️ **ОФИЦИАЛЬНЫЙ ОРДЕР DEPARTMENT OF JUSTICE • SAN ANDREAS**\n`;
+            discordText += `**Номер постановления:** \`${order.orderNumber}\`\n`;
+            discordText += `**Вид ордера:** \`${order.type}\` | **Инициатор:** ${order.faction}\n`;
+            discordText += `**Цель / Объект:** ${order.targetName} (${order.targetStaticId})\n`;
+            if (isEmg) {
+                discordText += `🟢 **Разрешено:** ${order.allowedActions}\n`;
+                discordText += `🔴 **Запрещено:** ${order.prohibitedActions}\n`;
+            } else {
+                discordText += `**Нарушенные статьи:** ${order.articles}\n`;
+            }
+            discordText += `**Фабула:** ${order.reason}\n`;
+            discordText += `**Срок действия:** ${order.validUntil}\n`;
+            discordText += `**Выдал:** ${order.issuedBy}\n`;
+            discordText += `**Статус:** **${STATUS_META[order.status].label}**`;
+
+            const textArea = document.createElement('textarea');
+            textArea.value = discordText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Отчёт успешно скопирован в буфер обмена для Discord!', 'success');
+            } catch (err) {
+                showToast('Не удалось скопировать отчёт', 'error');
+            }
+            document.body.removeChild(textArea);
+        };
+    </script>
+</body>
+</html>
