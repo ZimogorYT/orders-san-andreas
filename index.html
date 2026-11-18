@@ -22,7 +22,7 @@
         window.firebaseAppReady = false;
         try {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'san-andreas-doj-registry';
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            const firebaseConfig = {
                 apiKey: "AIzaSyCisoytWzBpvU-XZWUnVG7bBZI5s5XbtfU",
                 authDomain: "orders-533ee.firebaseapp.com",
                 projectId: "orders-533ee",
